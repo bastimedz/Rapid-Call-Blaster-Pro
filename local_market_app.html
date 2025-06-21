@@ -1,0 +1,203 @@
+<!-- Directory: local-market-app -->
+
+<!-- README.md -->
+# Local Market App
+A secure mobile marketplace app for local goods, featuring Flutter for mobile, React for admin, Firebase backend, and Netlify deployment.
+
+## Tech Stack
+- **Mobile App**: Flutter + Firebase
+- **Admin Panel**: React + Firebase Auth + Firestore
+- **Backend**: Firebase Functions & Firestore
+- **Deployment**: Netlify (Admin Panel)
+
+---
+
+<!-- Directory: firebase/firestore.rules -->
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /products/{productId} {
+      allow read;
+      allow create, update, delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+    }
+
+    match /vendors/{vendorId} {
+      allow read;
+      allow write: if request.auth != null && request.auth.uid == vendorId;
+    }
+  }
+}
+
+---
+
+<!-- Directory: mobile_app/lib/main.dart -->
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'screens/login_screen.dart';
+import 'screens/home_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const LocalMarketApp());
+}
+
+class LocalMarketApp extends StatelessWidget {
+  const LocalMarketApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Local Market',
+      theme: ThemeData(primarySwatch: Colors.green),
+      home: LoginScreen(),
+    );
+  }
+}
+
+---
+
+<!-- Directory: mobile_app/lib/screens/login_screen.dart -->
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'home_screen.dart';
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _auth = FirebaseAuth.instance;
+
+  Future<void> _login() async {
+    try {
+      await _auth.signInWithEmailAndPassword(
+          email: _emailController.text, password: _passwordController.text);
+      Navigator.pushReplacement(
+          context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login failed: $e")),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Login")),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(controller: _emailController, decoration: const InputDecoration(labelText: "Email")),
+            TextField(controller: _passwordController, decoration: const InputDecoration(labelText: "Password"), obscureText: true),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: _login, child: const Text("Login"))
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+---
+
+<!-- Directory: mobile_app/lib/screens/home_screen.dart -->
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Local Market Home"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              Navigator.pop(context);
+            },
+          )
+        ],
+      ),
+      body: const Center(child: Text("Welcome to Local Market!")),
+    );
+  }
+}
+
+---
+
+<!-- Directory: admin_panel/src/firebase.js -->
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "SENDER_ID",
+  appId: "APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+
+---
+
+<!-- Directory: admin_panel/src/App.jsx -->
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "./firebase";
+import Dashboard from "./Dashboard";
+import Login from "./Login";
+
+function App() {
+  const [user] = useAuthState(auth);
+  return user ? <Dashboard /> : <Login />;
+}
+export default App;
+
+---
+
+<!-- Directory: deployment/netlify.toml -->
+[build]
+  command = "npm run build"
+  publish = "admin_panel/dist"
+
+[functions]
+  directory = "netlify/functions"
+
+---
+
+<!-- Directory: .gitignore -->
+node_modules
+build
+.DS_Store
+*.log
+.env
+
+---
+
+<!-- Next Steps -->
+# Deployment Guide
+1. Setup Firebase (Firestore, Auth, Storage)
+2. Deploy `admin_panel` to Netlify using `netlify deploy`
+3. Build `mobile_app` with Flutter for Android/iOS
+4. Secure Firebase with environment variables and rules
+5. Customize the UI further with your brand identity
+
+Contact for scaling this project or advanced security integration if needed.
